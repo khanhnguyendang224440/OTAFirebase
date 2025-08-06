@@ -6,7 +6,7 @@
 const char *ssid = "IOT_2";
 const char *password = "iot@1234";
 
-const char *firmware_url = "https://esp32-ota-demo-d2ee4.web.app/firmware_khanh4.bin";
+const char *firmware_url = "https://esp32-ota-demo-d2ee4.web.app/firmware_khanh5.bin";
 
 void setup()
 {
@@ -31,7 +31,7 @@ void setup()
   delay(1000); // Chờ mạng ổn định
 
   // ⚡ Bắt đầu OTA
-  Serial.println("🚀 Bắt đầu cập nhật firmware từ Khanhdeptrai4...");
+  Serial.println("🚀 Bắt đầu cập nhật firmware từ Khanhdeptrai5...");
   Serial.print("🔗 URL: ");
   Serial.println(firmware_url);
 
