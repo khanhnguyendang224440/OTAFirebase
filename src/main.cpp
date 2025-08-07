@@ -1,63 +1,79 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 #include <HTTPUpdate.h>
 
-// ⚙️ Thông tin WiFi
 const char *ssid = "IOT_2";
 const char *password = "iot@1234";
 
-const char *firmware_url = "https://esp32-ota-demo-d2ee4.web.app/firmware_khanh5.bin";
+const char *json_url = "https://esp32-ota-demo-d2ee4.web.app/firmware.json";
+const char *current_version = "1.0.7"; // Phiên bản hiện tại đang chạy trên thiết bị
 
 void setup()
 {
   Serial.begin(115200);
-  delay(1000);
-
-  Serial.println("Thiết bị: Khanhdeptrai1");
-
-  // Kết nối WiFi
   WiFi.begin(ssid, password);
-  Serial.println("📶 Đang kết nối WiFi...");
+  Serial.print("📶 Đang kết nối WiFi...");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
     Serial.print(".");
   }
-
   Serial.println("\n✅ WiFi đã kết nối!");
-  Serial.print("📡 IP: ");
-  Serial.println(WiFi.localIP());
-
-  delay(1000); // Chờ mạng ổn định
-
-  // ⚡ Bắt đầu OTA
-  Serial.println("🚀 Bắt đầu cập nhật firmware từ Khanhdeptrai5...");
-  Serial.print("🔗 URL: ");
-  Serial.println(firmware_url);
+  Serial.println("🚀 Bắt đầu kiểm tra OTA...");
 
   WiFiClientSecure client;
-  client.setInsecure(); // Bỏ xác thực SSL (Firebase chỉ dùng HTTPS)
+  client.setInsecure();
 
-  t_httpUpdate_return ret = httpUpdate.update(client, firmware_url);
+  HTTPClient https;
+  https.begin(client, json_url);
+  int httpCode = https.GET();
 
-  switch (ret)
+  if (httpCode == HTTP_CODE_OK)
   {
-  case HTTP_UPDATE_FAILED:
-    Serial.printf("❌ OTA thất bại. Mã lỗi: %d\n", httpUpdate.getLastError());
-    Serial.printf("🔍 Lý do: %s\n", httpUpdate.getLastErrorString().c_str());
-    break;
+    String payload = https.getString();
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, payload);
 
-  case HTTP_UPDATE_NO_UPDATES:
-    Serial.println("ℹ️ Không có bản cập nhật mới.");
-    break;
+    String new_version = doc["version"];
+    String firmware_url = doc["url"];
 
-  case HTTP_UPDATE_OK:
-    Serial.println("✅ Cập nhật thành công! Thiết bị sẽ khởi động lại.");
-    break;
+    Serial.printf("🔎 Phiên bản mới: %s\n", new_version.c_str());
+    Serial.printf("🔗 URL firmware: %s\n", firmware_url.c_str());
+
+    if (new_version != current_version)
+    {
+      Serial.println("📦 Có firmware mới. Đang cập nhật...");
+      t_httpUpdate_return ret = httpUpdate.update(client, firmware_url);
+
+      switch (ret)
+      {
+      case HTTP_UPDATE_FAILED:
+        Serial.printf("❌ OTA thất bại. Mã lỗi: %d\n", httpUpdate.getLastError());
+        Serial.printf("🔍 Lý do: %s\n", httpUpdate.getLastErrorString().c_str());
+        break;
+
+      case HTTP_UPDATE_OK:
+        Serial.println("✅ Cập nhật thành công! Đang khởi động lại...");
+        break;
+
+      default:
+        Serial.println("⚠️ Trạng thái OTA không xác định.");
+        break;
+      }
+    }
+    else
+    {
+      Serial.println("✔️ Thiết bị đã ở phiên bản mới nhất.");
+    }
   }
+  else
+  {
+    Serial.printf("❌ Lỗi tải JSON. Mã HTTP: %d\n", httpCode);
+  }
+
+  https.end();
 }
 
-void loop()
-{
-  // Không làm gì trong loop
-}
+void loop() {}
