@@ -8,7 +8,33 @@ const char *ssid = "IOT_2";
 const char *password = "iot@1234";
 
 const char *json_url = "https://esp32-ota-demo-d2ee4.web.app/firmware.json";
-const char *current_version = "1.0.7"; // Phiên bản hiện tại đang chạy trên thiết bị
+const char *current_version = "1.0.7";
+
+// 🌟 Hàm callback theo dõi tiến trình OTA
+void showProgress(int current, int total)
+{
+  static int lastPercent = -1;
+  if (total <= 0)
+    return;
+
+  int percent = (current * 100) / total;
+  if (percent != lastPercent)
+  {
+    lastPercent = percent;
+
+    // Hiển thị tiến trình như: [██████------] 60%
+    int bars = percent / 5; // Mỗi thanh = 5%
+    Serial.print("\r[");
+    for (int i = 0; i < 20; i++)
+    {
+      if (i < bars)
+        Serial.print("█");
+      else
+        Serial.print("-");
+    }
+    Serial.printf("] %d%%", percent);
+  }
+}
 
 void setup()
 {
@@ -45,21 +71,25 @@ void setup()
     if (new_version != current_version)
     {
       Serial.println("📦 Có firmware mới. Đang cập nhật...");
+
+      // 💡 Gắn callback hiển thị tiến trình
+      httpUpdate.onProgress(showProgress);
+
       t_httpUpdate_return ret = httpUpdate.update(client, firmware_url);
 
       switch (ret)
       {
       case HTTP_UPDATE_FAILED:
-        Serial.printf("❌ OTA thất bại. Mã lỗi: %d\n", httpUpdate.getLastError());
+        Serial.printf("\n❌ OTA thất bại. Mã lỗi: %d\n", httpUpdate.getLastError());
         Serial.printf("🔍 Lý do: %s\n", httpUpdate.getLastErrorString().c_str());
         break;
 
       case HTTP_UPDATE_OK:
-        Serial.println("✅ Cập nhật thành công! Đang khởi động lại...");
+        Serial.println("\n✅ Cập nhật thành công! Đang khởi động lại...");
         break;
 
       default:
-        Serial.println("⚠️ Trạng thái OTA không xác định.");
+        Serial.println("\n⚠️ Trạng thái OTA không xác định.");
         break;
       }
     }
